@@ -1,21 +1,18 @@
-#include<stdio.h>
-#include<stddef.h>
+#ifndef _mymalloc_H_
+#define _mymalloc_H_
 
-char myblock[4096]; // memory array
+#define malloc( x ) mymalloc( x, __FILE__, __LINE__ )
+#define free( x ) myfree( x, __FILE__, __LINE__ )
+static char myblock[4096];
+unsigned int goodMallocs;
+unsigned int badMallocs;
+unsigned int goodFrees;
+unsigned int badFrees;
+unsigned int outsideFrees;
+unsigned int redundantFrees;
+void sizeSet(unsigned int index, unsigned int num);
+unsigned int sizeRead(unsigned int index);
+void* mymalloc(size_t size, char* file, int linenum);
+void myfree(void* p, char* file, int linenum);
 
-// contains metadat for allocation and deallocation
-struct block{
- size_t size;
- int free;
- struct block *next; 
-};
-
-// initial allocation of memory, initially void
-struct block *freeList= (void*)myblock;
-
-// functions in the malloc.c file
-void initialize();
-void split(struct block *fitting_slot,size_t size);
-void *MyMalloc(size_t noOfBytes);
-void merge();
-void myfree(void* ptr);
+#endif /* _mymalloc_H_ */
