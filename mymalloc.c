@@ -1,122 +1,137 @@
-#include <stdlib.h>
-#include <stdio.h>
+#include "mymalloc.h"
 
-#define malloc( x ) mymalloc( x, __FILE__, __LINE__ )
-#define free( x ) myfree( x, __FILE__, __LINE__ )
+#define MEMSIZE 4096
 
-/* Blocks are allocated as follows:
- * Data (X bytes)
- * Size (2 bytes, metadata)
- *		-Block allocation is determined by most significant bit in Size bytes
- */
-static char myblock[4096]; //array used for myblock allocation
-unsigned int goodMallocs;
-unsigned int badMallocs;
-unsigned int goodFrees;
-unsigned int badFrees;
-unsigned int outsideFrees;
-unsigned int redundantFrees;
+struct MemEntry
+{
+  struct MemEntry *prev, *next;
+  int isfree;   // 1 - yes, 0 - no
+  int size;
+};
 
-/* Sets the size of a block, where index is the start of that block's metadata
- * Note: Always set the size before setting the allocation bit, as it is implicitly
- * set to unallocated
- */
-void sizeSet(unsigned int index, unsigned int num){
-	myblock[index] = (num<<16)>>24;
-	myblock[index+1] = (num<<24)>>24;
+
+static char memblock[MEMSIZE]; //big block of memory space
+static const int entriesSize = MEMSIZE/sizeof(struct MemEntry)+1; //size of memEntries
+static void *memEntries[MEMSIZE/sizeof(struct MemEntry)+1] = {0}; //pointers to memEntries
+
+// return the first occurance of an index not containing a memEntry
+static int getFreeIndex() {
+  int i;
+  for (i = 0; i < entriesSize; i++)
+    if (memEntries[i] == 0) 
+      return i;
+  return 1; //should never reach here but 0 is always set as root
 }
 
-/* Reads the size of a block, where index is the start of that block's metadata
- * Ignores the allocation bit when calculating block size
- */
-unsigned int sizeRead(unsigned int index){
-	unsigned int result = 0;
-	result |= myblock[index]<<8;
-	result |= myblock[index+1];
-	//ignore bit used for allocation
-	return (result<<17)>>17;
+// return a pointer to the memory buffer requested
+void *mymalloc(unsigned int size, char *file, int line)
+{
+  static int initialized = 0;
+  struct MemEntry *p;
+  struct MemEntry *next;
+  static struct MemEntry *root;
+  
+  if (size == 0) {
+    printf("Unable to allocate 0 bytes in FILE: '%s' on LINE: '%d'\n", file, line);
+    return 0;
+  }
+
+  if(!initialized)  // 1st time called
+  {
+    // create a root chunk at the beginning of the memory block
+    root = (struct MemEntry*) memblock;
+    root->prev = root->next = 0;
+    root->size = MEMSIZE - sizeof(struct MemEntry);
+    root->isfree = 1;
+    initialized = 1;
+    memEntries[getFreeIndex()] = memblock;
+  }
+
+  p = root;
+  do
+  {
+    if(p->size < size || !p->isfree) {
+      // the current chunk is smaller, go to the next chunk
+      // or this chunk was taken, go to the next
+      p = p->next;
+    }
+    else if(p->size < (size + sizeof(struct MemEntry))) {
+      // this chunk is free and large enough to hold data, 
+      // but there's not enough memory to hold the HEADER of the next chunk
+      // don't create any more chunks after this one
+      p->isfree = 0;
+      return (char*)p + sizeof(struct MemEntry);
+    }
+    else {
+      // take the needed memory and create the header of the next chunk
+      next = (struct MemEntry*)((char*)p + sizeof(struct MemEntry) + size);
+      next->prev = p;
+      next->next = p->next;
+      next->size = p->size - sizeof(struct MemEntry) - size;
+      next->isfree = 1;
+      memEntries[getFreeIndex()] = next;
+      p->size = size;
+      p->isfree = 0;
+      p->next = next;
+      return (char*)p + sizeof(struct MemEntry);
+    }
+  } while (p != 0);
+
+  printf("Insufficient memory space requested (%d bytes) in FILE: '%s' on LINE: '%d'\n", size, file, line);
+  return 0;
 }
 
-/* Replacement for malloc
- * Uses First Fit algorithm to find an unallocated block
- * Splits the found block in two: the amount requested is allocated, and the rest is left free
- */
-void* mymalloc(size_t size, char* file, int linenum){
-	//find first unallocated block with enough space
-	unsigned int i = 0;
-	while(i+2<4096){
-		if((myblock[i]>>7)==0 && sizeRead(i)>=size)
-			break;
-		else
-			i+=2+sizeRead(i);
-	}
-	if(i+2>=4096){
-		badMallocs++;
-		return NULL;
-	}
-	
-	unsigned int startSize = sizeRead(i);
-	sizeSet(i, size);
-	//mark as allocated
-	myblock[i] |= (1<<7);
-	//check if space remaining
-	if((startSize-sizeRead(i))>0){
-		//divide leftover space into new block
-		sizeSet(i+2+size, (startSize-size)-2);
-	}
-	goodMallocs++;
-	return &myblock[i+2];
+// free a memory buffer pointed to by p
+void myfree(void *p, char *file, int line)
+{
+  struct MemEntry *ptr;
+  struct MemEntry *prev;
+  struct MemEntry *next;
+
+  if (p == NULL) {
+    printf("Pointer is NULL in file, free failed in FILE: '%s' on LINE: '%d'\n", file, line);
+    return;
+  }
+
+  ptr = (struct MemEntry*)((char*)p - sizeof(struct MemEntry));
+  
+  //check if valid memEntry ptr
+  int i;
+  int valid = 0;
+  for (i = 0; i < entriesSize; i++) {
+    if (ptr == memEntries[i] && !ptr->isfree) {
+      valid = 1; //memEntry is valid
+      break;
+    }
+  }
+  if (!valid) {
+    printf("Attempting to free memory that was not malloced in FILE: '%s' on LINE: '%d'\n", file, line);
+    return;
+  }
+
+  if((prev = ptr->prev) != 0 && prev->isfree)
+  {
+    // the previous chunk is free, so
+    // merge this chunk with the previous chunk
+    prev->size += sizeof(struct MemEntry) + ptr->size;
+    memEntries[i] = 0; //merged with previous, so removing free memEntry
+  }
+  else
+  { //not setting memEntry to null b/c not necessarily removing it, just isfree=1
+    ptr->isfree = 1;
+    prev = ptr; // used for the step below
+  }
+  if((next = ptr->next) != 0 && next->isfree)
+  {
+    // the next chunk is free, merge with it
+    prev->size += sizeof(struct MemEntry) + next->size;
+    prev->next = next->next;
+    //prev->isfree = 1;
+    for (i = 0; i < entriesSize; i++) {
+      if (next == memEntries[i]) {
+        memEntries[i] = 0; //merged with next, so removing free memEntry
+        break;
+      }
+    }
+  }
 }
-
-/* Unallocates blocks allocated by mymalloc()
- * Merges with adjacent free blocks if applicable
- * Zero's out the data within free'd blocks
- */
-void myfree(void* p, char* file, int linenum){
-	if(p==NULL){
-		//fprintf(stderr, "MALLOC ERROR in %s:%d: Cannot free NULL pointer\n", file, linenum);
-		badFrees++;
-		return;
-	}
-	int adr = -1;
-	unsigned int i;
-	//make sure p points to a real block
-	for(i = 0; i<4096; i+=2+sizeRead(i)){
-		if(p==&myblock[i+2]){
-			adr = i;
-			break;
-		}
-	}
-	if(adr==-1){
-		//fprintf(stderr, "MALLOC ERROR in %s:%d: Pointer not malloc'd\n", file, linenum);
-		outsideFrees++;
-		return;
-	}
-	if(myblock[adr]>>7==0){
-		//fprintf(stderr, "MALLOC ERROR in %s:%d: Pointer already free\n", file, linenum);
-		redundantFrees++;
-		return;
-	}
-	//mark as unallocated
-	myblock[adr] = (myblock[adr]<<25)>>25;
-	//merge with adjacent free blocks
-	//check if next block free
-	if(sizeRead(adr)+2+adr<4096 && myblock[adr+2+sizeRead(adr)]>>7==0){
-		unsigned int nextBlock = adr+2+sizeRead(adr);
-		sizeSet(adr, sizeRead(adr)+sizeRead(nextBlock)+2);
-	}
-	//check if prev block free
-	int prev = -1;
-	for(i = 0; i<adr; i+=(2+sizeRead(i))){
-		if(i+2+sizeRead(i)==adr){
-			prev=i;
-			break;
-		}
-	}
-	if(prev!=-1 && myblock[prev]>>7==0){
-		sizeSet(prev, sizeRead(prev)+sizeRead(adr)+2);
-	}
-	goodFrees++;
-}
-
-
