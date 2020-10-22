@@ -1,0 +1,35 @@
+Treasa Jose / Sagnik Mukherjee
+
+All workloads perform the mymalloc() and myfree() function calls. 
+Any errors encountered, prints the formatted error message and 
+moves on to the next process. 
+-------------------------------------------------------------------------------
+Workload D: 
+
+Purpose: 
+  This workload randomly decides if a pointer must be freed or malloced. 
+From this we can check how the program handles errors like redundant frees, 
+freeing unmalloced memory and saturation of dynamic memory.
+
+Algorithm:
+  This workload accepts an array and three int values m, f and i. If f = 120
+we return 0, if m = 120 then the memory is considered exhausted and frees some 
+space, makes a recursive call. If f < m, either malloc() or free() is randomly 
+chosen and exceuted. In this process the possibility of various error mentioned 
+above helps us better understand the quality of the code. 
+
+-------------------------------------------------------------------------------
+Workload E:
+
+Purpose: 
+  This workload makes equal number of malloc() and free() calls and checks for 
+any possible errors.
+
+Algorithm: 
+  This workload accepts a pointer and two int values, i and j. The workload 
+calls malloc() i times followed by free() i times. j is typically set to 0 to 
+check if i = j then return 0 else makes a recurssive call. Workload D helps us 
+know how the code acts with continuous malloc() and free() calls. The possible 
+errors that could be encountered would be memory saturation. 
+
+-------------------------------------------------------------------------------
