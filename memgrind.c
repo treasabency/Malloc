@@ -1,136 +1,147 @@
 #include "mymalloc.h"
 
 //malloc, free, malloc, free... 120 cycles
-void A(void* p)
+void runA(void* ptr)
 {
-	int i;
-	for(i = 0; i < 120; i++){
-		p = malloc(1);
-		free(p);
+	for(int i = 0; i < 120; i++) {
+		ptr = malloc(1);
+		free(ptr);
 	}
 }
 
 //malloc() 1 byte 120 times, then free() 120 times
-void B(void* p, int i)
+void runB(void* ptr, int level)
 {
-	if(i == 120)
+	if(level == 120)
 		return;
 
-	else{
-		p = malloc(1);
-		i++;
-		void* q = NULL;
-		B(q,i);
-		free(p);
+	else {
+		ptr = malloc(1);
+		level++;
+
+		void* newPtr = NULL;
+		runB(newPtr, level);
+		//free all pointers after recursion ends
+		free(ptr);
 	}
 }
 
 //randomly, either malloc 1 byte or attempt free(), 120 times
-void CHelper(void *p, int m, int f)
+void CRec(void *ptr, int mallocs, int frees)
 {
-	if(f == 120){
+	if(frees == 120) {
 		return;
 	}
-	else if(m == 120){
-		f++;
-		free(p);
-		void* q = NULL;
-		CHelper(q, m, f);
+
+	else if(mallocs == 120) {
+		free(ptr);
+		frees++;
+		void* newPtr = NULL;
+		CRec(newPtr, mallocs, frees);
 	}
 
-	else{
-		if(f<m){
-			int r = rand() % 2;
-			if(r){
-				p = malloc(1);
-				m++;
-				void* q = NULL;
-				CHelper(q, m, f);
+	else 
+	{
+		if(frees < mallocs) 
+		{
+			int choice = rand() % 2;
+
+			if(choice) {
+				ptr = malloc(1);
+				mallocs++;
+				void* newPtr = NULL;
+				CRec(newPtr, mallocs, frees);
 			}
-			else{
-				f++;
-				free(p);
-				void* q = NULL;
-				CHelper(q, m, f);
+			else {
+				free(ptr);
+				frees++;
+				void* newPtr = NULL;
+				CRec(newPtr, mallocs, frees);
 			}
 		}
-		else{
-			p = malloc(1);
-			m++;
-			void* q = NULL;
-			CHelper(q, m, f);
+		//cannot free if no allocated memory
+		else {
+			ptr = malloc(1);
+			mallocs++;
+			void* newPtr = NULL;
+			CRec(newPtr, mallocs, frees);
 		}
 	}
 }
 
-void C(void* p)
+//run with recursive helper
+void runC(void* ptr)
 {
-	CHelper(p, 0, 0);
+	CRec(ptr, 0, 0);
 }
 
 //randomly decides to either malloc or free, but for random sizes
-void DHelper(void *p, int m, int f)
+void DRec(void *ptr, int mallocs, int frees)
 {
-	if(f == 120){
+	if(frees == 120) {
 		return;
 	}
-	else if(m == 120){
-		f++;
-		free(p);
-		void* q = NULL;
-		DHelper(q, m, f);
+
+	else if(mallocs == 120) {
+		free(ptr);
+		frees++;
+		void* newPtr = NULL;
+		DRec(newPtr, mallocs, frees);
 	}
-	else{
-		if(f<m){
-			int r1 = rand()%2;
-			if(r1){
-				int randSize = rand()%101;
-				p = malloc(randSize);
-				m++;
-				void* q = NULL;
-				DHelper(q, m, f);
+
+	else
+	{
+		if(frees < mallocs)
+		{
+			int choice = rand() % 2;
+			if(choice) {
+				int randSize = rand() % 101;
+				ptr = malloc(randSize);
+				mallocs++;
+				void* newPtr = NULL;
+				DRec(newPtr, mallocs, frees);
 			}
-			else{
-				f++;
-				free(p);
-				void* q = NULL;
-				DHelper(q, m, f);
+			else {
+				free(ptr);
+				frees++;
+				void* newPtr = NULL;
+				DRec(newPtr, mallocs, frees);
 			}
 		}
-		else{
-			int randSize = rand()%101;
-			p = malloc(randSize);
-			m++;
-			void* q = NULL;
-			DHelper(q, m, f);
+		else {
+			int randSize = rand() % 101;
+			ptr = malloc(randSize);
+			mallocs++;
+			void* newPtr = NULL;
+			DRec(newPtr, mallocs, frees);
 		}
 	}
 }
 
-void D(void* p)
+void runD(void* ptr)
 {
-	DHelper(p, 0, 0);
+	DRec(ptr, 0, 0);
 }
 
 //increasing equal numbers of mallocs and frees up to 100 of each
-void E(void* p)
+void runE(void* ptr)
 {
-	int i;
-	for(i = 0; i < 100; i++){
-		for(int j = 0; j < i; j++){
-			p = malloc(1);
-			free(p);
+	for(int i = 0; i < 100; i++) {
+		for(int j = 0; j < i; j++) {
+			ptr = malloc(1);
+			free(ptr);
 		}
 	}
 }
 
 //run each workload 50 times, output mean runtimes to console
-int main(){
-	int i;
+int main()
+{
+	unsigned int i;
 	unsigned int timeA, timeB, timeC, timeD, timeE, timeAll;
 	timeA = timeB = timeC = timeD = timeE = timeAll = 0;
 
-	void* p = NULL;
+	void* ptr = NULL;
 	struct timeval start;
 	struct timeval end;
 	struct timeval fullStart;
@@ -139,10 +150,11 @@ int main(){
 
 	gettimeofday(&fullStart, 0);
 
+	//add difference in microseconds each time, divide by 1000 later for milliseconds
 	for(i = 0; i < 50; i++)
 	{
 		gettimeofday(&start, 0);
-		A(p);
+		runA(ptr);
 		gettimeofday(&end, 0);
 		timeA += (end.tv_sec-start.tv_sec)*1000000 + end.tv_usec-start.tv_usec;
 	}
@@ -150,7 +162,7 @@ int main(){
 	for(i = 0; i < 50; i++)
 	{
 		gettimeofday(&start, 0);
-		B(p, 1);
+		runB(ptr, 1);
 		gettimeofday(&end, 0);
 		timeB += (end.tv_sec-start.tv_sec)*1000000 + end.tv_usec-start.tv_usec;
 	}
@@ -158,7 +170,7 @@ int main(){
 	for(i = 0; i < 50; i++)
 	{
 		gettimeofday(&start, 0);
-		C(p);
+		runC(ptr);
 		gettimeofday(&end, 0);
 		timeC += (end.tv_sec-start.tv_sec)*1000000 + end.tv_usec-start.tv_usec;
 	}
@@ -166,7 +178,7 @@ int main(){
 	for(i = 0; i < 50; i++)
 	{
 		gettimeofday(&start, 0);
-		D(p);
+		runD(ptr);
 		gettimeofday(&end, 0);
 		timeD += (end.tv_sec-start.tv_sec)*1000000 + end.tv_usec-start.tv_usec;
 	}
@@ -174,7 +186,7 @@ int main(){
 	for(i = 0; i < 50; i++)
 	{
 		gettimeofday(&start, 0);
-		E(p);
+		runE(ptr);
 		gettimeofday(&end, 0);
 		timeE += (end.tv_sec-start.tv_sec)*1000000 + end.tv_usec-start.tv_usec;
 	}
@@ -183,12 +195,12 @@ int main(){
 	timeAll += (fullEnd.tv_sec - fullStart.tv_sec)*1000000 + fullEnd.tv_usec - fullStart.tv_usec;
 
 	printf("\n---------------------------------------------\n");
-	printf("Average time for workload A: %d ms\n", timeA/100);
-	printf("Average time for workload B: %d ms\n", timeB/100);
-	printf("Average time for workload C: %d ms\n", timeC/100);
-	printf("Average time for workload D: %d ms\n", timeD/100);
-	printf("Average time for workload E: %d ms\n", timeE/100);
-	printf("Average time for a full A-E workload: %d ms\n", timeAll/100);
+	printf("Average time for workload A: %d ms\n", timeA/1000);
+	printf("Average time for workload B: %d ms\n", timeB/1000);
+	printf("Average time for workload C: %d ms\n", timeC/1000);
+	printf("Average time for workload D: %d ms\n", timeD/1000);
+	printf("Average time for workload E: %d ms\n", timeE/1000);
+	printf("Average time for a full A-E workload: %d ms\n", timeAll/1000);
 	printf("---------------------------------------------\n\n");
 
 	return 0;
