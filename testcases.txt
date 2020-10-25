@@ -1,20 +1,20 @@
 Treasa Jose / Sagnik Mukherjee
 
 All workloads perform the mymalloc() and myfree() function calls. 
-Any errors encountered, prints the formatted error message and 
-moves on to the next process. 
+For any errors encountered, output appropriate formatted error message, move
+on to the next process. 
 -------------------------------------------------------------------------------
 Workload D: 
 
 Purpose: 
-  This workload recursively chooses i mallocs followed by i frees. The purpose
-of this workload is check if the recursive calls for malloc and free work with 
-no errors like saturated memory, free()ing unmalloced memory. 
+  This workload recursively executes i mallocs followed by i frees. The purpose
+of this workload is to check if the recursive calls for malloc and free throw errors, such as saturated memory, or free()ing unmalloced memory, and handle them.
+
 Algorithm:
   The workload first has a recursive function DRec that accepts a pointer and 
 two int values i and j. Here the recursive functions of malloc() and free() 
-are performed. Next runD function accepts a pointer as parameter and calls for 
-the recursive function DRec with this pointer. Using for loop the power of 2, 5 
+are performed. Next, runD accepts a pointer as parameter and calls for 
+the recursive function DRec with this pointer. Using a for loop with pow (2,5), it 
 calls for the function DRec. 
 ------------------------------------------------------------------------------------
 Workload E:
@@ -26,8 +26,8 @@ any possible errors.
 Algorithm: 
   This workload accepts a pointer. The workload calls malloc() i times followed 
 by free() i times. Using a for loop upto count 100, malloc() and free() are called 
-on that pointer. Workload D helps us know how the code acts with continuous 
-malloc() and free() calls. The possible errors that could be encountered would 
+on that pointer. Workload E shows us how the code acts with continuous 
+malloc() and free() calls. The possible error that could be encountered would 
 be memory saturation. 
 
 ------------------------------------------------------------------------------------

@@ -10,20 +10,17 @@
 
 #define malloc( x ) mymalloc( x, __FILE__, __LINE__ )
 #define free( x ) myfree( x, __FILE__, __LINE__ )
-#define MYSIZE 4096
-
-static char myblock[MYSIZE];
+#define MAXSIZE 4096
 
 struct entry
 {
-	int isfree; //0 - not free
+	int isFree; //0 - not free
 	int entrySize;
 	struct entry *prev;
 	struct entry *next;
 };
 
-static void *memEntries[MYSIZE/sizeof(struct entry) + 1] = {0};
-
+int getFreeIndex();
 void *mymalloc(size_t size, char* file, int linenum);
 void myfree(void* p, char* file, int linenum);
 
