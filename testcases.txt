@@ -7,18 +7,16 @@ moves on to the next process.
 Workload D: 
 
 Purpose: 
-  This workload randomly decides if a pointer must be freed or malloced. 
-From this we can check how the program handles errors like redundant frees, 
-freeing unmalloced memory and saturation of dynamic memory.
-
+  This workload recursively chooses i mallocs followed by i frees. The purpose
+of this workload is check if the recursive calls for malloc and free work with 
+no errors like saturated memory, free()ing unmalloced memory. 
 Algorithm:
-  This workload accepts an array and three int values m, f and i. If f = 120
-we return 0, if m = 120 then the memory is considered exhausted and frees some 
-space, makes a recursive call. If f < m, either malloc() or free() is randomly 
-chosen and exceuted. In this process the possibility of various error mentioned 
-above helps us better understand the quality of the code. 
-
--------------------------------------------------------------------------------
+  The workload first has a recursive function DRec that accepts a pointer and 
+two int values i and j. Here the recursive functions of malloc() and free() 
+are performed. Next runD function accepts a pointer as parameter and calls for 
+the recursive function DRec with this pointer. Using for loop the power of 2, 5 
+calls for the function DRec. 
+------------------------------------------------------------------------------------
 Workload E:
 
 Purpose: 
@@ -26,10 +24,10 @@ Purpose:
 any possible errors.
 
 Algorithm: 
-  This workload accepts a pointer and two int values, i and j. The workload 
-calls malloc() i times followed by free() i times. j is typically set to 0 to 
-check if i = j then return 0 else makes a recurssive call. Workload D helps us 
-know how the code acts with continuous malloc() and free() calls. The possible 
-errors that could be encountered would be memory saturation. 
+  This workload accepts a pointer. The workload calls malloc() i times followed 
+by free() i times. Using a for loop upto count 100, malloc() and free() are called 
+on that pointer. Workload D helps us know how the code acts with continuous 
+malloc() and free() calls. The possible errors that could be encountered would 
+be memory saturation. 
 
--------------------------------------------------------------------------------
+------------------------------------------------------------------------------------
