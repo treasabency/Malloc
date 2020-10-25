@@ -63,9 +63,8 @@ void CHelper(void *p, int m, int f)
 	}
 }
 
-void C()
+void C(void* p)
 {
-	void* p = NULL;
 	CHelper(p, 0, 0);
 }
 
@@ -108,9 +107,8 @@ void DHelper(void *p, int m, int f)
 	}
 }
 
-void D()
+void D(void* p)
 {
-	void* p = NULL;
 	DHelper(p, 0, 0);
 }
 
@@ -118,7 +116,7 @@ void D()
 void E(void* p)
 {
 	int i;
-	for(i = 0; i < 10; i++){
+	for(i = 0; i < 100; i++){
 		for(int j = 0; j < i; j++){
 			p = malloc(1);
 			free(p);
@@ -160,7 +158,7 @@ int main(){
 	for(i = 0; i < 50; i++)
 	{
 		gettimeofday(&start, 0);
-		C();
+		C(p);
 		gettimeofday(&end, 0);
 		timeC += (end.tv_sec-start.tv_sec)*1000000 + end.tv_usec-start.tv_usec;
 	}
@@ -168,7 +166,7 @@ int main(){
 	for(i = 0; i < 50; i++)
 	{
 		gettimeofday(&start, 0);
-		D();
+		D(p);
 		gettimeofday(&end, 0);
 		timeD += (end.tv_sec-start.tv_sec)*1000000 + end.tv_usec-start.tv_usec;
 	}
