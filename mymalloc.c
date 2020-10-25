@@ -1,137 +1,131 @@
 #include "mymalloc.h"
 
-#define MEMSIZE 4096
-
-struct MemEntry
+// search for the first possible unoccupied entry in myblock
+int getFreeIndex() 
 {
-  struct MemEntry *prev, *next;
-  int isfree;   // 1 - yes, 0 - no
-  int size;
-};
+	int entriesSize = MYSIZE/sizeof(struct entry) + 1;
+	int i;
 
-
-static char memblock[MEMSIZE]; //big block of memory space
-static const int entriesSize = MEMSIZE/sizeof(struct MemEntry)+1; //size of memEntries
-static void *memEntries[MEMSIZE/sizeof(struct MemEntry)+1] = {0}; //pointers to memEntries
-
-// return the first occurance of an index not containing a memEntry
-static int getFreeIndex() {
-  int i;
-  for (i = 0; i < entriesSize; i++)
-    if (memEntries[i] == 0) 
-      return i;
-  return 1; //should never reach here but 0 is always set as root
+	for(i = 0; i < entriesSize; i++)
+		if(memEntries[i] == 0) 
+			return i;
+  return 1; //should never reach here but 0 is always set as head
 }
 
-// return a pointer to the memory buffer requested
-void *mymalloc(unsigned int size, char *file, int line)
+//allocate memory of given size within myblock
+void *mymalloc(size_t allocSize, char* file, int line)
 {
-  static int initialized = 0;
-  struct MemEntry *p;
-  struct MemEntry *next;
-  static struct MemEntry *root;
-  
-  if (size == 0) {
-    printf("Unable to allocate 0 bytes in FILE: '%s' on LINE: '%d'\n", file, line);
-    return 0;
-  }
+	int init = 0;
+	struct entry *curr;
+	struct entry *next;
+	struct entry *head;
+	int entriesSize = MYSIZE/sizeof(struct entry) + 1;
 
-  if(!initialized)  // 1st time called
-  {
-    // create a root chunk at the beginning of the memory block
-    root = (struct MemEntry*) memblock;
-    root->prev = root->next = 0;
-    root->size = MEMSIZE - sizeof(struct MemEntry);
-    root->isfree = 1;
-    initialized = 1;
-    memEntries[getFreeIndex()] = memblock;
-  }
+	if (allocSize== 0) {
+		printf("ERROR: Could not allocate zero bytes (FILE: %s, LINE: %d)\n", file, line);
+		return 0;
+	}
 
-  p = root;
-  do
-  {
-    if(p->size < size || !p->isfree) {
-      // the current chunk is smaller, go to the next chunk
-      // or this chunk was taken, go to the next
-      p = p->next;
-    }
-    else if(p->size < (size + sizeof(struct MemEntry))) {
-      // this chunk is free and large enough to hold data, 
-      // but there's not enough memory to hold the HEADER of the next chunk
-      // don't create any more chunks after this one
-      p->isfree = 0;
-      return (char*)p + sizeof(struct MemEntry);
-    }
-    else {
-      // take the needed memory and create the header of the next chunk
-      next = (struct MemEntry*)((char*)p + sizeof(struct MemEntry) + size);
-      next->prev = p;
-      next->next = p->next;
-      next->size = p->size - sizeof(struct MemEntry) - size;
-      next->isfree = 1;
-      memEntries[getFreeIndex()] = next;
-      p->size = size;
-      p->isfree = 0;
-      p->next = next;
-      return (char*)p + sizeof(struct MemEntry);
-    }
-  } while (p != 0);
+	if(!init)
+	{
+	//set head to start of myblock
+		head = (struct entry*) myblock;
 
-  printf("Insufficient memory space requested (%d bytes) in FILE: '%s' on LINE: '%d'\n", size, file, line);
-  return 0;
+		head->entrySize = MYSIZE - sizeof(struct entry);
+		head->isfree = 1;
+		head->prev = head->next = 0;
+
+		init = 1;
+		memEntries[getFreeIndex()] = myblock;
+	}
+
+	curr = head;
+	do
+	{
+		if(curr->entrySize < allocSize || !curr->isfree) {
+	  // the current chunk is smaller, go to the next chunk
+	  // or this chunk was taken, go to the next
+			curr = curr->next;
+		}
+		else if(curr->entrySize < (allocSize + sizeof(struct entry))) {
+	  // this chunk is free and large enough to hold data, 
+	  // but there's not enough memory to hold the HEADER of the next chunk
+	  // don't create any more chunks after this one
+			curr->isfree = 0;
+			return (char*)curr + sizeof(struct entry);
+		}
+		else {
+	  // take the needed memory and create the header of the next chunk
+			next = (struct entry*)((char*)curr + sizeof(struct entry) + allocSize);
+			next->prev = curr;
+			next->next = curr->next;
+			next->entrySize = curr->entrySize - sizeof(struct entry) - allocSize;
+			next->isfree = 1;
+			memEntries[getFreeIndex()] = next;
+			curr->entrySize = allocSize;
+			curr->isfree = 0;
+			curr->next = next;
+			return (char*)curr + sizeof(struct entry);
+		}
+	} while (curr);
+
+	printf("ERROR: Not enough memory space available (%ld bytes attempted) (FILE: %s, LINE: %d)\n", allocSize, file, line);
+	return 0;
 }
 
 // free a memory buffer pointed to by p
-void myfree(void *p, char *file, int line)
+void myfree(void *toFree, char *file, int line)
 {
-  struct MemEntry *ptr;
-  struct MemEntry *prev;
-  struct MemEntry *next;
+	struct entry *ptr;
+	struct entry *prev;
+	struct entry *next;
+	int entriesSize = MYSIZE/sizeof(struct entry) + 1;
 
-  if (p == NULL) {
-    printf("Pointer is NULL in file, free failed in FILE: '%s' on LINE: '%d'\n", file, line);
-    return;
-  }
+	if (toFree == NULL) {
+		printf("ERROR: Pointer is NULL-valued, free failed (FILE: %s, LINE: %d)\n", file, line);
+		return;
+	}
 
-  ptr = (struct MemEntry*)((char*)p - sizeof(struct MemEntry));
-  
-  //check if valid memEntry ptr
-  int i;
-  int valid = 0;
-  for (i = 0; i < entriesSize; i++) {
-    if (ptr == memEntries[i] && !ptr->isfree) {
-      valid = 1; //memEntry is valid
-      break;
-    }
-  }
-  if (!valid) {
-    printf("Attempting to free memory that was not malloced in FILE: '%s' on LINE: '%d'\n", file, line);
-    return;
-  }
+	ptr = (struct entry*)((char*)toFree - sizeof(struct entry));
 
-  if((prev = ptr->prev) != 0 && prev->isfree)
-  {
-    // the previous chunk is free, so
-    // merge this chunk with the previous chunk
-    prev->size += sizeof(struct MemEntry) + ptr->size;
-    memEntries[i] = 0; //merged with previous, so removing free memEntry
-  }
-  else
-  { //not setting memEntry to null b/c not necessarily removing it, just isfree=1
-    ptr->isfree = 1;
-    prev = ptr; // used for the step below
-  }
-  if((next = ptr->next) != 0 && next->isfree)
-  {
-    // the next chunk is free, merge with it
-    prev->size += sizeof(struct MemEntry) + next->size;
-    prev->next = next->next;
-    //prev->isfree = 1;
-    for (i = 0; i < entriesSize; i++) {
-      if (next == memEntries[i]) {
-        memEntries[i] = 0; //merged with next, so removing free memEntry
-        break;
-      }
-    }
-  }
+	//check if valid entry ptr
+	int i;
+	int valid = 0;
+	for (i = 0; i < entriesSize; i++) {
+		if (ptr == memEntries[i] && !ptr->isfree) {
+		  valid = 1; //entry is valid
+		  break;
+		}
+	}
+
+	if (!valid) {
+		printf("ERROR: Cannot free unallocated memory space (FILE: %s, LINE: %d)\n", file, line);
+		return;
+	}
+
+	if((prev = ptr->prev) != 0 && prev->isfree)
+	{
+		// the previous chunk is free, so
+		// merge this chunk with the previous chunk
+		prev->entrySize += sizeof(struct entry) + ptr->entrySize;
+		memEntries[i] = 0; //merged with previous, so removing free entry
+	}
+	else
+	{ //not setting entry to null b/c not necessarily removing it, just isfree=1
+		ptr->isfree = 1;
+		prev = ptr; // used for the step below
+	}
+	if((next = ptr->next) != 0 && next->isfree)
+	{
+		// the next chunk is free, merge with it
+		prev->entrySize += sizeof(struct entry) + next->entrySize;
+		prev->next = next->next;
+		//prev->isfree = 1;
+		for (i = 0; i < entriesSize; i++) {
+			if (next == memEntries[i]) {
+				memEntries[i] = 0; //merged with next, so removing free entry
+				break;
+			}
+		}
+	}
 }
