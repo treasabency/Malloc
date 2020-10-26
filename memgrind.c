@@ -120,15 +120,13 @@ int main()
 	struct timeval fullEnd;
 	srand(time(NULL));
 
-	gettimeofday(&fullStart, 0);
-
-	//add difference in microseconds each time, divide by 1000 later for milliseconds
+	//add difference in microseconds each time
 	for(i = 0; i < 50; i++)
 	{
 		gettimeofday(&start, 0);
 		runA(ptr);
 		gettimeofday(&end, 0);
-		timeA += (end.tv_sec-start.tv_sec)*1000000 + end.tv_usec-start.tv_usec;
+		timeA += (end.tv_sec-start.tv_sec)*1000000 + abs(end.tv_usec-start.tv_usec);
 	}
 
 	for(i = 0; i < 50; i++)
@@ -136,7 +134,7 @@ int main()
 		gettimeofday(&start, 0);
 		runB(ptr, 1);
 		gettimeofday(&end, 0);
-		timeB += (end.tv_sec-start.tv_sec)*1000000 + end.tv_usec-start.tv_usec;
+		timeB += (end.tv_sec-start.tv_sec)*1000000 + abs(end.tv_usec-start.tv_usec);
 	}
 
 	for(i = 0; i < 50; i++)
@@ -144,7 +142,7 @@ int main()
 		gettimeofday(&start, 0);
 		runC(ptr);
 		gettimeofday(&end, 0);
-		timeC += (end.tv_sec-start.tv_sec)*1000000 + end.tv_usec-start.tv_usec;
+		timeC += (end.tv_sec-start.tv_sec)*1000000 + abs(end.tv_usec-start.tv_usec);
 	}
 	
 	for(i = 0; i < 50; i++)
@@ -152,7 +150,7 @@ int main()
 		gettimeofday(&start, 0);
 		runD(ptr);
 		gettimeofday(&end, 0);
-		timeD += (end.tv_sec-start.tv_sec)*1000000 + end.tv_usec-start.tv_usec;
+		timeD += (end.tv_sec-start.tv_sec)*1000000 + abs(end.tv_usec-start.tv_usec);
 	}
 
 	for(i = 0; i < 50; i++)
@@ -160,20 +158,16 @@ int main()
 		gettimeofday(&start, 0);
 		runE(ptr);
 		gettimeofday(&end, 0);
-		timeE += (end.tv_sec-start.tv_sec)*1000000 + end.tv_usec-start.tv_usec;
+		timeE += (end.tv_sec-start.tv_sec)*1000000 + abs(end.tv_usec-start.tv_usec);
 	}
 
-	gettimeofday(&fullEnd, 0);
-	timeAll += (fullEnd.tv_sec - fullStart.tv_sec)*1000000 + fullEnd.tv_usec - fullStart.tv_usec;
-
-	printf("\n---------------------------------------------\n");
-	printf("Average time for workload A: %d ms\n", timeA/1000);
-	printf("Average time for workload B: %d ms\n", timeB/1000);
-	printf("Average time for workload C: %d ms\n", timeC/1000);
-	printf("Average time for workload D: %d ms\n", timeD/1000);
-	printf("Average time for workload E: %d ms\n", timeE/1000);
-	printf("Average time for a full A-E workload: %d ms\n", timeAll/1000);
-	printf("---------------------------------------------\n\n");
+	printf("\n--------------(microseconds)-----------------\n");
+	printf("Average time for workload A: %d\n", timeA/50);
+	printf("Average time for workload B: %d\n", timeB/50);
+	printf("Average time for workload C: %d\n", timeC/50);
+	printf("Average time for workload D: %d\n", timeD/50);
+	printf("Average time for workload E: %d\n", timeE/50);
+	printf("--------------(microseconds)-----------------\n\n");
 
 	return 0;
 }
